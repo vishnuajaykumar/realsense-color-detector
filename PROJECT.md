@@ -292,6 +292,7 @@ chore: add .dockerignore and docker-compose.yml
 
 ## LattePanda-Specific Notes
 
+- **USB cable:** Must be a USB 3.0 cable (blue connector tab inside USB-A end, 9-pin, SS marked). USB 2.0 cables cause frame timeouts and -71 EPROTO errors. Check with `lsusb -t` — should show `5000M` not `480M` for the camera.
 - **USB power:** RealSense D435i draws ~0.9W. Use a powered USB hub or the top-mounted USB 3.0 port.
 - **CPU:** LattePanda 3 Delta has 4 cores. Detection runs at ~15Hz; set `min_contour_area: 1000` if CPU is saturated.
 - **udev rules:** Must be installed on the host, not inside the container.
@@ -329,7 +330,9 @@ chore: add .dockerignore and docker-compose.yml
 - [x] Docker image builds cleanly (2026-03-17)
 - [x] ros-mcp-server cloned + installed in ~/ros_mcp_server/.venv Python 3.10 (2026-03-17)
 - [x] Push to GitHub dev branch (2026-03-17) — https://github.com/vishnuajaykumar/realsense-color-detector
-- [ ] Live camera test: /detections publishes
-- [ ] RViz visualization confirmed
-- [ ] /query_objects service tested
+- [x] Live camera test: /detections publishes (2026-03-17)
+- [x] RViz launched and displaying (2026-03-17)
+- [x] /query_objects service tested end-to-end (2026-03-17)
+  - Detected blue object at 2.52 m, 3D position x=1.13m y=0.93m z=2.55m
+- [ ] USB 3.0 cable swap — currently on USB 2.0 cable at 6fps (see LattePanda notes)
 - [ ] MCP server connected to Claude Desktop
