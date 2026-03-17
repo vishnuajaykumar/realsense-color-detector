@@ -1,7 +1,10 @@
-build/
-install/
-log/
-__pycache__/
-*.pyc
-.git/
-*.egg-info/
+realsense_color_detector/build/
+realsense_color_detector/install/
+realsense_color_detector/log/
+realsense_color_detector/__pycache__/
+realsense_color_detector/*.pyc
+realsense_color_detector/.git/
+realsense_color_detector/*.egg-info/
+realsense_color_detector_msgs/build/
+realsense_color_detector_msgs/install/
+realsense_color_detector_msgs/log/

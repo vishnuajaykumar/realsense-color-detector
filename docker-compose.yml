@@ -2,7 +2,9 @@ version: "3.8"
 
 services:
   detector:
-    build: .
+    build:
+      context: ..   # ~/ros2_ws/src/ — includes both packages
+      dockerfile: realsense_color_detector/Dockerfile
     network_mode: host
     privileged: true
     devices:
@@ -18,7 +20,7 @@ services:
     image: python:3.11-slim
     working_dir: /app
     volumes:
-      - ~/ros_mcp_server:/app
+      - ${HOME}/ros_mcp_server:/app
     command: >
       sh -c "pip install -e . && python server.py"
     network_mode: host

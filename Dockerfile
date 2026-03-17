@@ -22,18 +22,22 @@ RUN pip3 install --no-cache-dir \
     opencv-python-headless \
     numpy
 
-# Copy workspace source
+# Copy both packages into the workspace
+# Build context is ~/ros2_ws/src/ (set in docker-compose.yml)
 WORKDIR /ros2_ws
-COPY . /ros2_ws/src/realsense_color_detector/
+COPY realsense_color_detector_msgs/ /ros2_ws/src/realsense_color_detector_msgs/
+COPY realsense_color_detector/     /ros2_ws/src/realsense_color_detector/
 
 # Build msgs package first, then main package
-RUN /bin/bash -c "source /opt/ros/foxy/setup.bash && \
+RUN /bin/bash -c "\
+    source /opt/ros/foxy/setup.bash && \
     colcon build --packages-select realsense_color_detector_msgs && \
     source /ros2_ws/install/setup.bash && \
     colcon build --packages-select realsense_color_detector"
 
 # Entrypoint
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN echo '#!/bin/bash\nset -e\nsource /opt/ros/foxy/setup.bash\nsource /ros2_ws/install/setup.bash\nexec "$@"' \
+    > /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
+
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["ros2", "launch", "realsense_color_detector", "detector.launch.py"]

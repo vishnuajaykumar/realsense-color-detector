@@ -228,12 +228,11 @@ Red requires two HSV ranges because hue wraps at 180°. Adjust `red.h_low1/h_hig
 
 ## MCP Server Setup
 
-### 1. Clone ros-mcp-server
+### 1. Clone ros-mcp-server (already done)
 
 ```bash
-git clone https://github.com/robotmcp/ros-mcp-server ~/ros_mcp_server
-cd ~/ros_mcp_server
-pip install -e .
+# Already cloned to ~/ros_mcp_server
+# Already installed in ~/ros_mcp_server/.venv (Python 3.10)
 ```
 
 ### 2. Start rosbridge (already in launch file)
@@ -248,15 +247,19 @@ Add to `~/.config/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "ros2": {
-      "command": "python",
+      "command": "/home/vish/ros_mcp_server/.venv/bin/python",
       "args": ["/home/vish/ros_mcp_server/server.py"],
       "env": {
-        "ROS_BRIDGE_URL": "ws://localhost:9090"
+        "ROSBRIDGE_IP": "127.0.0.1",
+        "ROSBRIDGE_PORT": "9090"
       }
     }
   }
 }
 ```
+
+> Note: `server.py` uses stdio transport (default). Claude Desktop spawns it as a subprocess.
+> Ensure rosbridge is running (`docker compose up detector`) before opening Claude Desktop.
 
 ### 4. Sample NL queries that work
 
@@ -322,10 +325,11 @@ chore: add .dockerignore and docker-compose.yml
 - [x] .dockerignore + .gitignore
 - [x] scripts/install_udev.sh
 - [x] PROJECT.md
-- [ ] colcon build verified
-- [ ] Docker image builds cleanly
+- [x] colcon build verified (msgs + main package, Foxy, 2026-03-17)
+- [x] Docker image builds cleanly (2026-03-17)
+- [x] ros-mcp-server cloned + installed in ~/ros_mcp_server/.venv Python 3.10 (2026-03-17)
+- [x] Push to GitHub dev branch (2026-03-17) — https://github.com/vishnuajaykumar/realsense-color-detector
 - [ ] Live camera test: /detections publishes
 - [ ] RViz visualization confirmed
 - [ ] /query_objects service tested
 - [ ] MCP server connected to Claude Desktop
-- [ ] Push to GitHub dev branch
