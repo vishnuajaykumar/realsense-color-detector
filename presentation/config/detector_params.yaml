@@ -1,0 +1,35 @@
+detector_node:
+  ros__parameters:
+    min_contour_area: 500.0
+
+    # Red HSV (two ranges to handle hue wraparound)
+    red.h_low1:  0
+    red.h_high1: 10
+    red.h_low2:  160
+    red.h_high2: 180
+    red.s_low:   100
+    red.s_high:  255
+    red.v_low:   100
+    red.v_high:  255
+
+    # Green HSV
+    green.h_low:  40
+    green.h_high: 80
+    green.s_low:  80
+    green.s_high: 255
+    green.v_low:  80
+    green.v_high: 255
+
+    # Blue HSV
+    blue.h_low:  100
+    blue.h_high: 130
+    blue.s_low:  80
+    blue.s_high: 255
+    blue.v_low:  80
+    blue.v_high: 255
+
+camera_node:
+  ros__parameters:
+    color_topic: /camera/color/image_raw
+    depth_topic: /camera/aligned_depth_to_color/image_raw
+    info_topic:  /camera/color/camera_info
