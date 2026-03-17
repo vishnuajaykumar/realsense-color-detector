@@ -2,6 +2,14 @@ detector_node:
   ros__parameters:
     min_contour_area: 500.0
 
+    # Depth sensing parameters (Intel RealSense D435i)
+    # depth_scale: raw unit → metres. D435i default = 0.001 (1 mm per unit).
+    # Verify with: ros2 topic echo /camera/depth/camera_info | grep -A2 D
+    depth_scale: 0.001
+    # D435i reliable range: 0.1 m – 10 m (practical detection limit: 4 m)
+    min_depth_m: 0.1
+    max_depth_m: 4.0
+
     # Red HSV (two ranges to handle hue wraparound)
     red.h_low1:  0
     red.h_high1: 10

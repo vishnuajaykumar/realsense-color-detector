@@ -41,17 +41,23 @@ def build_default_color_profiles() -> List[ColorProfile]:
 
 class DetectionPipeline:
     """
-    Stateless use case: given a color image, depth image, intrinsics, and params,
-    returns a list of DetectedObject instances.
+    Stateless use case: given a colour image, depth image, intrinsics, and params,
+    returns a list of DetectedObject instances with calibrated 3D distances.
     """
 
     def __init__(
         self,
         color_profiles: Optional[List[ColorProfile]] = None,
         min_contour_area: float = 500.0,
+        depth_scale: float = 0.001,   # mm → m (D435i default)
+        min_depth_m: float = 0.1,     # D435i minimum reliable range
+        max_depth_m: float = 4.0,     # practical detection limit
     ):
         self.color_profiles = color_profiles or build_default_color_profiles()
         self.min_contour_area = min_contour_area
+        self.depth_scale = depth_scale
+        self.min_depth_m = min_depth_m
+        self.max_depth_m = max_depth_m
 
     def run(
         self,
@@ -65,6 +71,9 @@ class DetectionPipeline:
             color_profiles=self.color_profiles,
             intrinsics=intrinsics,
             min_contour_area=self.min_contour_area,
+            depth_scale=self.depth_scale,
+            min_depth_m=self.min_depth_m,
+            max_depth_m=self.max_depth_m,
         )
 
     def update_profile_ranges(self, label: str, ranges: List[HsvRange]) -> None:

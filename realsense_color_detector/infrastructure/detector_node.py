@@ -29,9 +29,17 @@ class DetectorNode(Node):
         super().__init__('detector_node')
 
         self._declare_hsv_params()
-        min_area = self.declare_parameter('min_contour_area', 500.0).value
+        min_area    = self.declare_parameter('min_contour_area', 500.0).value
+        depth_scale = self.declare_parameter('depth_scale',      0.001).value
+        min_depth   = self.declare_parameter('min_depth_m',      0.1).value
+        max_depth   = self.declare_parameter('max_depth_m',      4.0).value
 
-        self._pipeline = DetectionPipeline(min_contour_area=min_area)
+        self._pipeline = DetectionPipeline(
+            min_contour_area=min_area,
+            depth_scale=depth_scale,
+            min_depth_m=min_depth,
+            max_depth_m=max_depth,
+        )
         self._bridge = CvBridge()
         self._intrinsics: CameraIntrinsics = None
 
@@ -115,8 +123,12 @@ class DetectorNode(Node):
         color_cv = self._bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8')
         depth_cv = self._bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
 
-        # Refresh profiles from live params (allows runtime tuning)
-        self._pipeline.color_profiles = self._build_profiles_from_params()
+        # Refresh all params live (allows runtime tuning without restart)
+        self._pipeline.color_profiles  = self._build_profiles_from_params()
+        self._pipeline.depth_scale     = self.get_parameter('depth_scale').value
+        self._pipeline.min_depth_m     = self.get_parameter('min_depth_m').value
+        self._pipeline.max_depth_m     = self.get_parameter('max_depth_m').value
+        self._pipeline.min_contour_area = self.get_parameter('min_contour_area').value
 
         detections = self._pipeline.run(color_cv, depth_cv, self._intrinsics)
 
