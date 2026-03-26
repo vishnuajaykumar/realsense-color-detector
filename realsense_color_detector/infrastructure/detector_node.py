@@ -1,5 +1,5 @@
 """
-detector_node: Receives synced color+depth images, runs HSV detection pipeline,
+detector_node: Receives color+depth images, runs YOLO cube detection,
 publishes DetectedObjectArray on /detections.
 """
 import rclpy
@@ -7,14 +7,13 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
-from message_filters import ApproximateTimeSynchronizer, Subscriber
 
 from realsense_color_detector_msgs.msg import DetectedObject as DetectedObjectMsg
 from realsense_color_detector_msgs.msg import DetectedObjectArray
 from geometry_msgs.msg import Point
 
 from ..application.detection_pipeline import DetectionPipeline
-from ..domain.models import CameraIntrinsics, HsvRange
+from ..domain.models import CameraIntrinsics
 
 
 SENSOR_QOS = QoSProfile(
@@ -28,82 +27,45 @@ class DetectorNode(Node):
     def __init__(self):
         super().__init__('detector_node')
 
-        self._declare_hsv_params()
-        min_area    = self.declare_parameter('min_contour_area', 500.0).value
-        depth_scale = self.declare_parameter('depth_scale',      0.001).value
-        min_depth   = self.declare_parameter('min_depth_m',      0.1).value
-        max_depth   = self.declare_parameter('max_depth_m',      4.0).value
+        model_path  = self.declare_parameter(
+            'model_path',
+            '/ros2_ws/yolov8s-world.pt',
+        ).value
+        self.get_logger().info(f'Resolved model_path: {model_path}')
+        confidence  = self.declare_parameter('confidence',  0.15).value # Lowered for zero-shot text
+        depth_scale = self.declare_parameter('depth_scale', 0.001).value
+        min_depth   = self.declare_parameter('min_depth_m', 0.1).value
+        max_depth   = self.declare_parameter('max_depth_m', 4.0).value
 
+        color_topic = self.declare_parameter('color_topic', '/camera/color/image_raw').value
+        depth_topic = self.declare_parameter('depth_topic', '/camera/aligned_depth_to_color/image_raw').value
+        info_topic  = self.declare_parameter('info_topic',  '/camera/color/camera_info').value
+        imgsz       = self.declare_parameter('imgsz', 416).value
+
+        self.get_logger().info(f'Loading model from: {model_path}')
         self._pipeline = DetectionPipeline(
-            min_contour_area=min_area,
+            model_path=model_path,
+            confidence=confidence,
             depth_scale=depth_scale,
             min_depth_m=min_depth,
             max_depth_m=max_depth,
+            imgsz=imgsz,
         )
+        self.get_logger().info('Model loaded.')
+
         self._bridge = CvBridge()
         self._intrinsics: CameraIntrinsics = None
+        self._latest_depth_msg: Image = None
 
-        self.create_subscription(CameraInfo, '/sync/color/camera_info', self._on_camera_info, SENSOR_QOS)
-
-        self._color_sub = Subscriber(self, Image, '/sync/color/image_raw', qos_profile=SENSOR_QOS)
-        self._depth_sub = Subscriber(self, Image, '/sync/depth/image_raw', qos_profile=SENSOR_QOS)
-        self._sync = ApproximateTimeSynchronizer(
-            [self._color_sub, self._depth_sub], queue_size=10, slop=0.05
-        )
-        self._sync.registerCallback(self._on_images)
+        self._info_sub  = self.create_subscription(CameraInfo, info_topic,  self._on_camera_info, SENSOR_QOS)
+        self._depth_sub = self.create_subscription(Image,      depth_topic, self._on_depth,       SENSOR_QOS)
+        self._color_sub = self.create_subscription(Image,      color_topic, self._on_color,       SENSOR_QOS)
 
         self._detections_pub = self.create_publisher(DetectedObjectArray, '/detections', 10)
 
-        self.get_logger().info('DetectorNode ready.')
-
-    def _declare_hsv_params(self):
-        # Red (two ranges for hue wraparound)
-        self.declare_parameter('red.h_low1',  0)
-        self.declare_parameter('red.h_high1', 10)
-        self.declare_parameter('red.h_low2',  160)
-        self.declare_parameter('red.h_high2', 180)
-        self.declare_parameter('red.s_low',   100)
-        self.declare_parameter('red.s_high',  255)
-        self.declare_parameter('red.v_low',   100)
-        self.declare_parameter('red.v_high',  255)
-        # Green
-        self.declare_parameter('green.h_low',  40)
-        self.declare_parameter('green.h_high', 80)
-        self.declare_parameter('green.s_low',  80)
-        self.declare_parameter('green.s_high', 255)
-        self.declare_parameter('green.v_low',  80)
-        self.declare_parameter('green.v_high', 255)
-        # Blue
-        self.declare_parameter('blue.h_low',  100)
-        self.declare_parameter('blue.h_high', 130)
-        self.declare_parameter('blue.s_low',  80)
-        self.declare_parameter('blue.s_high', 255)
-        self.declare_parameter('blue.v_low',  80)
-        self.declare_parameter('blue.v_high', 255)
-
-    def _build_profiles_from_params(self):
-        from ..domain.models import ColorProfile
-        g = self.get_parameter
-
-        red = ColorProfile(label='red', ranges=[
-            HsvRange(g('red.h_low1').value,  g('red.h_high1').value,
-                     g('red.s_low').value,   g('red.s_high').value,
-                     g('red.v_low').value,   g('red.v_high').value),
-            HsvRange(g('red.h_low2').value,  g('red.h_high2').value,
-                     g('red.s_low').value,   g('red.s_high').value,
-                     g('red.v_low').value,   g('red.v_high').value),
-        ])
-        green = ColorProfile(label='green', ranges=[
-            HsvRange(g('green.h_low').value, g('green.h_high').value,
-                     g('green.s_low').value, g('green.s_high').value,
-                     g('green.v_low').value, g('green.v_high').value),
-        ])
-        blue = ColorProfile(label='blue', ranges=[
-            HsvRange(g('blue.h_low').value,  g('blue.h_high').value,
-                     g('blue.s_low').value,  g('blue.s_high').value,
-                     g('blue.v_low').value,  g('blue.v_high').value),
-        ])
-        return [red, green, blue]
+        self.get_logger().info(
+            f'DetectorNode ready. color={color_topic} depth={depth_topic}'
+        )
 
     def _on_camera_info(self, msg: CameraInfo):
         if self._intrinsics is None:
@@ -113,43 +75,57 @@ class DetectorNode(Node):
                 width=msg.width, height=msg.height,
             )
             self.get_logger().info(
-                f'Camera intrinsics received: fx={k[0]:.1f} fy={k[4]:.1f} cx={k[2]:.1f} cy={k[5]:.1f}'
+                f'Intrinsics: fx={k[0]:.1f} fy={k[4]:.1f} cx={k[2]:.1f} cy={k[5]:.1f}'
             )
 
-    def _on_images(self, color_msg: Image, depth_msg: Image):
+    def _on_depth(self, msg: Image):
+        self._latest_depth_msg = msg
+
+    def _on_color(self, color_msg: Image):
         if self._intrinsics is None:
+            self.get_logger().info('Waiting for intrinsics...', throttle_duration_sec=7.0)
+            return
+        if self._latest_depth_msg is None:
+            self.get_logger().info('Waiting for first depth message...', throttle_duration_sec=7.0)
             return
 
-        color_cv = self._bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8')
-        depth_cv = self._bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+        self.get_logger().info(f'Processing frame ({self._pipeline._imgsz}x{self._pipeline._imgsz})...', throttle_duration_sec=3.0)
 
-        # Refresh all params live (allows runtime tuning without restart)
-        self._pipeline.color_profiles  = self._build_profiles_from_params()
-        self._pipeline.depth_scale     = self.get_parameter('depth_scale').value
-        self._pipeline.min_depth_m     = self.get_parameter('min_depth_m').value
-        self._pipeline.max_depth_m     = self.get_parameter('max_depth_m').value
-        self._pipeline.min_contour_area = self.get_parameter('min_contour_area').value
+        try:
+            color_cv = self._bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8')
+            depth_cv = self._bridge.imgmsg_to_cv2(
+                self._latest_depth_msg, desired_encoding='passthrough'
+            )
 
-        detections = self._pipeline.run(color_cv, depth_cv, self._intrinsics)
+            detections = self._pipeline.run(color_cv, depth_cv, self._intrinsics)
 
-        array_msg = DetectedObjectArray()
-        array_msg.header = color_msg.header
-        for d in detections:
-            obj = DetectedObjectMsg()
-            obj.label = d.label
-            obj.distance_m = d.distance_m
-            obj.bbox_x = d.bbox.x
-            obj.bbox_y = d.bbox.y
-            obj.bbox_w = d.bbox.w
-            obj.bbox_h = d.bbox.h
-            pt = Point()
-            pt.x = d.position_3d.x
-            pt.y = d.position_3d.y
-            pt.z = d.position_3d.z
-            obj.position_3d = pt
-            array_msg.objects.append(obj)
+            array_msg = DetectedObjectArray()
+            array_msg.header = color_msg.header
+            for d in detections:
+                obj = DetectedObjectMsg()
+                obj.label      = d.label
+                obj.distance_m = d.distance_m
+                obj.bbox_x     = d.bbox.x
+                obj.bbox_y     = d.bbox.y
+                obj.bbox_w     = d.bbox.w
+                obj.bbox_h     = d.bbox.h
+                pt = Point()
+                pt.x = d.position_3d.x
+                pt.y = d.position_3d.y
+                pt.z = d.position_3d.z
+                obj.position_3d = pt
+                array_msg.objects.append(obj)
 
-        self._detections_pub.publish(array_msg)
+            self._detections_pub.publish(array_msg)
+
+            if array_msg.objects:
+                self.get_logger().info(
+                    f'Detected {len(array_msg.objects)} object(s)',
+                    throttle_duration_sec=3.0,
+                )
+
+        except Exception as exc:
+            self.get_logger().error(f'detector error: {exc}', throttle_duration_sec=2.0)
 
 
 def main(args=None):

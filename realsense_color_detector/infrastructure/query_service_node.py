@@ -17,10 +17,10 @@ class QueryServiceNode(Node):
 
         self._latest: list[DomainDetectedObject] = []
 
-        self.create_subscription(
+        self._detections_sub = self.create_subscription(
             DetectedObjectArray, '/detections', self._on_detections, 10
         )
-        self.create_service(QueryObjects, '/query_objects', self._handle_query)
+        self._srv = self.create_service(QueryObjects, '/query_objects', self._handle_query)
 
         self.get_logger().info('QueryServiceNode ready. Service: /query_objects')
 

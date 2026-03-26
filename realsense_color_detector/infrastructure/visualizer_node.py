@@ -55,22 +55,19 @@ class VisualizerNode(Node):
 
         self._bridge = CvBridge()
         self._latest_detections: DetectedObjectArray = None
+        self._latest_depth_msg: Image = None
 
         # Subscribe to detections
-        self.create_subscription(
+        self._detections_sub = self.create_subscription(
             DetectedObjectArray, '/detections', self._on_detections, 10
         )
 
-        # Sync colour + depth so we can produce a depth overlay at the same timestamp
-        self._color_sub = Subscriber(self, Image, '/sync/color/image_raw', qos_profile=SENSOR_QOS)
-        self._depth_sub = Subscriber(self, Image, '/sync/depth/image_raw', qos_profile=SENSOR_QOS)
-        self._sync = ApproximateTimeSynchronizer(
-            [self._color_sub, self._depth_sub], queue_size=10, slop=0.05
-        )
-        self._sync.registerCallback(self._on_images)
+        # Async subscriptions instead of ApproximateTimeSynchronizer to prevent CPU starvation on LattePanda
+        self._depth_sub = self.create_subscription(Image, '/camera/aligned_depth_to_color/image_raw', self._on_depth, SENSOR_QOS)
+        self._color_sub = self.create_subscription(Image, '/camera/color/image_raw', self._on_color, SENSOR_QOS)
 
-        self._image_pub   = self.create_publisher(Image,       '/detection_image',   SENSOR_QOS)
-        self._depth_pub   = self.create_publisher(Image,       '/detection_depth',   SENSOR_QOS)
+        self._image_pub   = self.create_publisher(Image,       '/detection_image',   10)
+        self._depth_pub   = self.create_publisher(Image,       '/detection_depth',   10)
         self._markers_pub = self.create_publisher(MarkerArray, '/detection_markers', 10)
 
         self.get_logger().info('VisualizerNode ready.')
@@ -79,12 +76,15 @@ class VisualizerNode(Node):
         self._latest_detections = msg
         self._publish_markers(msg)
 
-    def _on_images(self, color_msg: Image, depth_msg: Image):
-        if self._latest_detections is None:
+    def _on_depth(self, msg: Image):
+        self._latest_depth_msg = msg
+
+    def _on_color(self, color_msg: Image):
+        if self._latest_detections is None or self._latest_depth_msg is None:
             return
 
         color_cv = self._bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8').copy()
-        depth_cv = self._bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+        depth_cv = self._bridge.imgmsg_to_cv2(self._latest_depth_msg, desired_encoding='passthrough')
 
         # --- Annotated colour image ---
         self._draw_detections(color_cv, self._latest_detections)
@@ -96,7 +96,7 @@ class VisualizerNode(Node):
         depth_bgr = _colorize_depth(depth_cv)
         self._draw_depth_overlays(depth_bgr, self._latest_detections)
         out_depth = self._bridge.cv2_to_imgmsg(depth_bgr, encoding='bgr8')
-        out_depth.header = depth_msg.header
+        out_depth.header = self._latest_depth_msg.header
         self._depth_pub.publish(out_depth)
 
     def _draw_detections(self, img: np.ndarray, detections: DetectedObjectArray):
@@ -118,7 +118,8 @@ class VisualizerNode(Node):
             label_line1 = f'{obj.label.upper()}'
             label_line2 = f'{obj.distance_m:.2f} m  ({dist_cm:.0f} cm)'
 
-            # Filled background pill for readability
+            # Filled black background pill for maximum readability
+            bg_color = (0, 0, 0)
             font       = cv2.FONT_HERSHEY_SIMPLEX
             font_scale = 0.55
             thickness  = 2
@@ -127,9 +128,9 @@ class VisualizerNode(Node):
             box_w  = max(tw1, tw2) + 8
             box_h  = th1 + th2 + 14
             top_y  = max(y - box_h - 4, 0)
-            cv2.rectangle(img, (x, top_y), (x + box_w, top_y + box_h), color, cv2.FILLED)
+            cv2.rectangle(img, (x, top_y), (x + box_w, top_y + box_h), bg_color, cv2.FILLED)
 
-            # White text on coloured background
+            # White text on black background
             cv2.putText(img, label_line1, (x + 4, top_y + th1 + 4),
                         font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
             cv2.putText(img, label_line2, (x + 4, top_y + th1 + th2 + 10),
@@ -199,7 +200,7 @@ class VisualizerNode(Node):
             t.color.g = g
             t.color.b = b
             t.color.a = 1.0
-            t.text    = f'{obj.label}\n{obj.distance_m:.2f} m'
+            t.text    = f"Cube Detected\n{obj.distance_m:.2f} m"
             t.lifetime = Duration(sec=0, nanosec=500_000_000)
 
             marker_array.markers.append(t)

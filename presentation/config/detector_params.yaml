@@ -1,43 +1,28 @@
 detector_node:
   ros__parameters:
-    min_contour_area: 500.0
+    model_path: /ros2_ws/yolov8s-world.pt
+
+    # Minimum detection confidence (0.0–1.0). Lower = more detections, more false positives.
+    confidence: 0.15
 
     # Depth sensing parameters (Intel RealSense D435i)
-    # depth_scale: raw unit → metres. D435i default = 0.001 (1 mm per unit).
-    # Verify with: ros2 topic echo /camera/depth/camera_info | grep -A2 D
-    depth_scale: 0.001
-    # D435i reliable range: 0.1 m – 10 m (practical detection limit: 4 m)
-    min_depth_m: 0.1
-    max_depth_m: 4.0
+    depth_scale: 0.001   # raw unit → metres (1 mm per unit, D435i default)
+    min_depth_m: 0.1     # D435i minimum reliable range
+    max_depth_m: 4.0     # practical detection limit
 
-    # Red HSV (two ranges to handle hue wraparound)
-    red.h_low1:  0
-    red.h_high1: 10
-    red.h_low2:  160
-    red.h_high2: 180
-    red.s_low:   100
-    red.s_high:  255
-    red.v_low:   100
-    red.v_high:  255
-
-    # Green HSV
-    green.h_low:  40
-    green.h_high: 80
-    green.s_low:  80
-    green.s_high: 255
-    green.v_low:  80
-    green.v_high: 255
-
-    # Blue HSV
-    blue.h_low:  100
-    blue.h_high: 130
-    blue.s_low:  80
-    blue.s_high: 255
-    blue.v_low:  80
-    blue.v_high: 255
+    # Camera topic overrides (defaults match realsense2_camera node)
+    color_topic: /camera/color/image_raw
+    depth_topic: /camera/aligned_depth_to_color/image_raw
+    info_topic:  /camera/color/camera_info
 
 camera_node:
   ros__parameters:
     color_topic: /camera/color/image_raw
     depth_topic: /camera/aligned_depth_to_color/image_raw
     info_topic:  /camera/color/camera_info
+    # Ultra-low bandwidth for USB 2.0 / LattePanda
+    depth_module.profile: 424,240,6
+    rgb_camera.profile: 424,240,6
+    enable_sync: true
+    align_depth.enable: true
+    enable_pointcloud: false
