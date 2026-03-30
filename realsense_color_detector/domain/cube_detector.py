@@ -82,7 +82,6 @@ class CubeDetector:
             if r.boxes is None:
                 continue
             names = r.names
-            print(f"[DEBUG] Model names: {names}")
             for box in r.boxes:
                 raw_cls = int(box.cls.item())
                 cls_name = names[raw_cls].lower()
