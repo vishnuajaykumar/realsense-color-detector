@@ -85,8 +85,9 @@ class CubeDetector:
                 cls_name = names[raw_cls].lower()
                 conf = float(box.conf.item())
                 
-                # Use 'Cube' as the universal label
-                label = "Cube"
+                # Use the model's native name for the class
+                label = names.get(raw_cls, f"Class_{raw_cls}")
+                label = label.title().replace("_", " ")
 
                 if conf >= self.confidence_threshold:
                     x1, y1, x2, y2 = box.xyxy[0].tolist()

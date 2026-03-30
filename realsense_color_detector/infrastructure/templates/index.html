@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Cube Radar | Real-Time Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600;700&family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00f2fe;
+            --secondary: #4facfe;
+            --bg: #0b0e14;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #ff0055;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Modern look, fit to screen */
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(79, 172, 254, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 90% 90%, rgba(0, 242, 254, 0.05) 0%, transparent 50%);
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr 300px;
+            grid-template-rows: 80px 1fr 100px;
+            height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* --- Header --- */
+        header {
+            grid-column: 1 / 4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 0 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 255, 0, 0.1);
+            padding: 8px 20px;
+            border-radius: 50px;
+            border: 1px solid rgba(0, 255, 0, 0.2);
+            font-size: 0.85rem;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            color: #00ff88;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #00ff88;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* --- Sidebar & Stats --- */
+        aside.left {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover { transform: translateY(-5px); border-color: rgba(255, 255, 255, 0.2); }
+
+        h3 { font-family: 'Rajdhani', sans-serif; font-size: 0.9rem; color: #888; text-transform: uppercase; margin-bottom: 15px; }
+
+        .stat-val { font-family: 'Rajdhani', sans-serif; font-size: 1.8rem; font-weight: 700; color: white; }
+        .stat-unit { font-size: 0.9rem; color: #666; margin-left: 5px; }
+
+        /* --- Main Stream Area --- */
+        main {
+            grid-column: 2 / 3;
+            position: relative;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+        }
+
+        #camera-stream {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated; /* Crisp look for low res */
+        }
+
+        .hud-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+
+        .hud-scanline {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent 95%, rgba(0, 242, 254, 0.05) 100%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        /* --- Right Panel --- */
+        aside.right {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .log-item {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.85rem;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #ccc;
+        }
+
+        .log-time { color: var(--primary); margin-right: 10px; }
+
+        /* --- Footer --- */
+        footer {
+            grid-column: 1 / 4;
+            display: flex;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">AI CUBE RADAR // LP86</div>
+            <div class="status-pill">
+                <div class="status-dot"></div>
+                SYSTEM ACTIVE [LATTEPANDA_HOST]
+            </div>
+        </header>
+
+        <aside class="left">
+            <div class="card">
+                <h3>Bandwidth</h3>
+                <div class="stat-val">Low <span class="stat-unit">USB 2.0</span></div>
+            </div>
+            <div class="card">
+                <h3>Frame Rate</h3>
+                <div class="stat-val">6.0 <span class="stat-unit">FPS</span></div>
+            </div>
+            <div class="card">
+                <h3>Inference</h3>
+                <div class="stat-val">YOLOv8-WORLD-NANO</div>
+            </div>
+        </aside>
+
+        <main>
+            <div class="hud-scanline"></div>
+            <img src="/video_feed" alt="RealSense Feed" id="camera-stream">
+            <div class="hud-overlay">
+                <div style="font-family: 'Orbitron'; font-size: 0.7rem; color: var(--primary); opacity: 0.6;">RADAR ACTIVE // ALIGNED_DEPTH_ENABLED</div>
+            </div>
+        </main>
+
+        <aside class="right">
+            <div class="card" style="height: 100%; overflow-y: auto;">
+                <h3>System Logs</h3>
+                <div id="log-container">
+                    <div class="log-item"><span class="log-time">10:33:01</span> Dashboard initialized.</div>
+                    <div class="log-item"><span class="log-time">10:33:02</span> Subscribed to /detection_image.</div>
+                    <div class="log-item"><span class="log-time">10:33:04</span> RealSense sync initiated.</div>
+                    <div class="log-item"><span class="log-time">10:33:05</span> Model YOLOv8s-World ready.</div>
+                </div>
+            </div>
+        </aside>
+
+        <footer>
+            <div class="card" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 40px;">
+                <div style="text-align: center;">
+                    <div style="color: #ff0055; font-weight: bold;">RED CUBES</div>
+                    <div id="count-red" class="stat-val">0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: #00ff88; font-weight: bold;">GREEN CUBES</div>
+                    <div id="count-green" class="stat-val">0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: #0088ff; font-weight: bold;">BLUE CUBES</div>
+                    <div id="count-blue" class="stat-val">0</div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Simple polling for health/counts if needed
+        function updateStats() {
+            fetch('/health')
+                .then(r => r.json())
+                .then(data => {
+                    const dot = document.querySelector('.status-dot');
+                    if (data.camera_active) {
+                        dot.style.backgroundColor = '#00ff88';
+                        dot.style.boxShadow = '0 0 10px #00ff88';
+                    } else {
+                        dot.style.backgroundColor = '#ff0055';
+                        dot.style.boxShadow = '0 0 10px #ff0055';
+                    }
+                });
+        }
+        setInterval(updateStats, 2000);
+    </script>
+</body>
+</html>

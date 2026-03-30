@@ -1,6 +1,7 @@
 detector_node:
   ros__parameters:
     model_path: /ros2_ws/yolov8s-world.pt
+    imgsz: 160
 
     # Minimum detection confidence (0.0–1.0). Lower = more detections, more false positives.
     confidence: 0.15

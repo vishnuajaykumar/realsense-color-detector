@@ -66,8 +66,8 @@ class VisualizerNode(Node):
         self._depth_sub = self.create_subscription(Image, '/camera/aligned_depth_to_color/image_raw', self._on_depth, SENSOR_QOS)
         self._color_sub = self.create_subscription(Image, '/camera/color/image_raw', self._on_color, SENSOR_QOS)
 
-        self._image_pub   = self.create_publisher(Image,       '/detection_image',   10)
-        self._depth_pub   = self.create_publisher(Image,       '/detection_depth',   10)
+        self._image_pub   = self.create_publisher(Image,       '/detection_image',   SENSOR_QOS)
+        self._depth_pub   = self.create_publisher(Image,       '/detection_depth',   SENSOR_QOS)
         self._markers_pub = self.create_publisher(MarkerArray, '/detection_markers', 10)
 
         self.get_logger().info('VisualizerNode ready.')
@@ -91,6 +91,7 @@ class VisualizerNode(Node):
         out_color = self._bridge.cv2_to_imgmsg(color_cv, encoding='bgr8')
         out_color.header = color_msg.header
         self._image_pub.publish(out_color)
+        self.get_logger().info('Publishing detection_image', throttle_duration_sec=5.0)
 
         # --- False-colour depth image with detection overlays ---
         depth_bgr = _colorize_depth(depth_cv)

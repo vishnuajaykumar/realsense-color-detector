@@ -1,4 +1,4 @@
-version: "3.8"
+# version: "3.8" # Obsolete
 
 services:
   detector:
@@ -10,11 +10,13 @@ services:
     pid: host
     devices:
       - /dev/bus/usb:/dev/bus/usb
+    shm_size: '2gb'
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-      - /home/vish/.Xauthority:/root/.Xauthority
+      - /run/user/1000/gdm/Xauthority:/root/.Xauthority
       - ./presentation/config:/ros2_ws/src/realsense_color_detector/presentation/config
       - /home/vish/.cache/ros_detector:/root/.cache
+      - /home/vish/.config/Ultralytics:/root/.config/Ultralytics
     environment:
       - DISPLAY=:0
       - XAUTHORITY=/root/.Xauthority
@@ -29,5 +31,6 @@ services:
     command: >
       sh -c "pip install --no-cache-dir -e . opencv-python-headless && python server.py"
     network_mode: host
+    shm_size: '2gb'
     depends_on:
       - detector

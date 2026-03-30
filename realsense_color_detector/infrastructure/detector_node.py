@@ -29,7 +29,7 @@ class DetectorNode(Node):
 
         model_path  = self.declare_parameter(
             'model_path',
-            '/ros2_ws/yolov8s-world.pt',
+            'yolov8n-world.pt',
         ).value
         self.get_logger().info(f'Resolved model_path: {model_path}')
         confidence  = self.declare_parameter('confidence',  0.15).value # Lowered for zero-shot text
@@ -40,7 +40,7 @@ class DetectorNode(Node):
         color_topic = self.declare_parameter('color_topic', '/camera/color/image_raw').value
         depth_topic = self.declare_parameter('depth_topic', '/camera/aligned_depth_to_color/image_raw').value
         info_topic  = self.declare_parameter('info_topic',  '/camera/color/camera_info').value
-        imgsz       = self.declare_parameter('imgsz', 416).value
+        imgsz       = self.declare_parameter('imgsz', 160).value
 
         self.get_logger().info(f'Loading model from: {model_path}')
         self._pipeline = DetectionPipeline(

@@ -23,9 +23,10 @@ def generate_launch_description():
             'enable_color':       'true',
             'enable_depth':       'true',
             'align_depth.enable': 'true',
-            'enable_pointcloud':  'true',
+            'enable_pointcloud':  'false',
             'depth_module.profile': '424,240,6',
             'rgb_camera.profile':   '424,240,6',
+            'initial_reset':        'true',
         }.items(),
     )
 
@@ -33,7 +34,10 @@ def generate_launch_description():
         package='realsense_color_detector',
         executable='detector_node',
         name='detector_node',
-        parameters=[params_file],
+        parameters=[
+            params_file,
+            {'model_path': 'yolov8n-world.pt', 'imgsz': 160}
+        ],
         output='screen',
     )
 

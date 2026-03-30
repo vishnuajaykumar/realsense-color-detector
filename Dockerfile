@@ -16,6 +16,15 @@ RUN apt-get update && apt-get install -y \
     ros-foxy-message-filters \
     ros-foxy-rqt-image-view \
     ros-foxy-rqt-gui \
+    libqt5x11extras5 \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \
+    libxcb-render-util0 \
+    libxcb-xinerama0 \
+    libxcb-xkb1 \
+    libxkbcommon-x11-0 \
+    libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
@@ -24,12 +33,13 @@ RUN pip3 install --no-cache-dir "setuptools<60" "importlib-metadata<5.0" "numpy>
     pyrealsense2 \
     opencv-python-headless \
     torch==2.0.1 torchvision==0.15.2 --extra-index-url https://download.pytorch.org/whl/cpu \
-    ultralytics
+    ultralytics \
+    "git+https://github.com/ultralytics/CLIP.git"
 
 # Copy both packages into the workspace
 # Build context is ~/ros2_ws/src/ (set in docker-compose.yml)
 WORKDIR /ros2_ws
-COPY realsense_color_detector/yolov8s-world.pt /ros2_ws/yolov8s-world.pt
+# Model will be downloaded automatically by Ultralytics to cache
 COPY realsense_color_detector_msgs/ /ros2_ws/src/realsense_color_detector_msgs/
 COPY realsense_color_detector/     /ros2_ws/src/realsense_color_detector/
 
