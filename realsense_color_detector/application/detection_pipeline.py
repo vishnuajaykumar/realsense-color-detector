@@ -80,6 +80,7 @@ class DetectionPipeline:
             y = (cy - intrinsics.cy) * depth_m / intrinsics.fy
             position = Point3D(x=x, y=y, z=depth_m)
 
+            print(f"[DEBUG] {label}: {conf:.2f}")
             results.append(DetectedObject(
                 label=label,
                 distance_m=depth_m,
