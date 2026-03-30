@@ -36,7 +36,7 @@ def generate_launch_description():
         name='detector_node',
         parameters=[
             params_file,
-            {'model_path': 'yolov8n-world.pt', 'imgsz': 160}
+            {'model_path': '/ros2_ws/yolov8s-world.pt', 'imgsz': 320}
         ],
         output='screen',
     )

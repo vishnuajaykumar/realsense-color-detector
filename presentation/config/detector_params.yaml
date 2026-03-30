@@ -1,10 +1,10 @@
 detector_node:
   ros__parameters:
     model_path: /ros2_ws/yolov8s-world.pt
-    imgsz: 160
+    imgsz: 320
 
     # Minimum detection confidence (0.0–1.0). Lower = more detections, more false positives.
-    confidence: 0.15
+    confidence: 0.25
 
     # Depth sensing parameters (Intel RealSense D435i)
     depth_scale: 0.001   # raw unit → metres (1 mm per unit, D435i default)
