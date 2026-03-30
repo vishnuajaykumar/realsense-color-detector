@@ -4,6 +4,7 @@ No ROS imports allowed here.
 """
 from typing import List, Optional
 import numpy as np
+from collections import deque
 
 from ..domain.cube_detector import CubeDetector
 from ..domain.color_detector import _sample_depth_fallback
@@ -38,8 +39,9 @@ class DetectionPipeline:
         
         # --- Calibration state ---
         self.is_calibrated = False
-        self.consecutive_frames = 0
-        self.REQUIRED_FRAMES = 30 # ~5 seconds at 6fps
+        self.REQUIRED_STABILITY = 0.8  # 80% detection rate
+        self.WINDOW_SIZE       = 30   # last 30 frames
+        self._history          = deque(maxlen=self.WINDOW_SIZE)
         self.CALIBRATION_LABELS = {"Red Cube", "Green Cube", "Blue Cube"}
 
     def run(
@@ -83,15 +85,26 @@ class DetectionPipeline:
         # --- Update Calibration Statemachine ---
         if not self.is_calibrated:
             current_labels = {d.label for d in results}
-            if self.CALIBRATION_LABELS.issubset(current_labels):
-                self.consecutive_frames += 1
-                if self.consecutive_frames >= self.REQUIRED_FRAMES:
+            success = self.CALIBRATION_LABELS.issubset(current_labels)
+            self._history.append(success)
+            
+            if len(self._history) == self.WINDOW_SIZE:
+                stability = sum(self._history) / self.WINDOW_SIZE
+                if stability >= self.REQUIRED_STABILITY:
                     self.is_calibrated = True
                     # Transition logic: Expand classes (handled by node)
-            else:
-                self.consecutive_frames = 0 # Reset on "spotty" detection
 
         return results
+
+    def get_calibration_status(self) -> str:
+        """Return a string describing the current calibration status."""
+        if self.is_calibrated:
+            return "READY"
+        
+        count = sum(self._history)
+        total = self.WINDOW_SIZE
+        progress = (count / total) * 100 if total > 0 else 0
+        return f"CALIBRATING: {count}/{total} ({progress:.0f}%)"
 
 
 def _depth_from_bbox(

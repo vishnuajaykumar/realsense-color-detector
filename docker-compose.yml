@@ -14,7 +14,7 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - /run/user/1000/gdm/Xauthority:/root/.Xauthority
-      - ./presentation/config:/ros2_ws/src/realsense_color_detector/presentation/config
+      - .:/ros2_ws/src/realsense_color_detector
       - /home/vish/.cache/ros_detector:/root/.cache
       - /home/vish/.config/Ultralytics:/root/.config/Ultralytics
     environment:

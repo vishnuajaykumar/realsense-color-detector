@@ -135,9 +135,7 @@ class DetectorNode(Node):
                     self._pipeline._detector.set_classes(["red cube", "green cube", "blue cube", "cube", "box", "block"])
                     self._was_calibrated = True # Only trigger once
             else:
-                progress = self._pipeline.consecutive_frames
-                total    = self._pipeline.REQUIRED_FRAMES
-                status_msg.data = f"CALIBRATING: {progress}/{total}"
+                status_msg.data = self._pipeline.get_calibration_status()
                 self.get_logger().info(status_msg.data, throttle_duration_sec=2.0)
             
             self._status_pub.publish(status_msg)
