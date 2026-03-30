@@ -15,6 +15,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - /run/user/1000/gdm/Xauthority:/root/.Xauthority
       - .:/ros2_ws/src/realsense_color_detector
+      - /home/vish/ros2_ws/yolov8s-world.pt:/ros2_ws/yolov8s-world.pt
       - /home/vish/.cache/ros_detector:/root/.cache
       - /home/vish/.config/Ultralytics:/root/.config/Ultralytics
     environment:
