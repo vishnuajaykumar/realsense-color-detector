@@ -14,6 +14,7 @@ from geometry_msgs.msg import Point
 
 from ..application.detection_pipeline import DetectionPipeline
 from ..domain.models import CameraIntrinsics
+from std_msgs.msg import String
 
 
 SENSOR_QOS = QoSProfile(
@@ -62,6 +63,7 @@ class DetectorNode(Node):
         self._color_sub = self.create_subscription(Image,      color_topic, self._on_color,       SENSOR_QOS)
 
         self._detections_pub = self.create_publisher(DetectedObjectArray, '/detections', 10)
+        self._status_pub     = self.create_publisher(String,              '/calibration_status', 10)
 
         self.get_logger().info(
             f'DetectorNode ready. color={color_topic} depth={depth_topic}'
@@ -123,6 +125,22 @@ class DetectorNode(Node):
                     f'Detected {len(array_msg.objects)} object(s)',
                     throttle_duration_sec=3.0,
                 )
+                
+            # --- Handle Calibration-to-Ready Transition ---
+            status_msg = String()
+            if self._pipeline.is_calibrated:
+                status_msg.data = "READY"
+                if not hasattr(self, '_was_calibrated'):
+                    self.get_logger().info('*** CALIBRATION READY! Expanding detection classes. ***')
+                    self._pipeline._detector.set_classes(["red cube", "green cube", "blue cube", "cube", "box", "block"])
+                    self._was_calibrated = True # Only trigger once
+            else:
+                progress = self._pipeline.consecutive_frames
+                total    = self._pipeline.REQUIRED_FRAMES
+                status_msg.data = f"CALIBRATING: {progress}/{total}"
+                self.get_logger().info(status_msg.data, throttle_duration_sec=2.0)
+            
+            self._status_pub.publish(status_msg)
 
         except Exception as exc:
             self.get_logger().error(f'detector error: {exc}', throttle_duration_sec=2.0)

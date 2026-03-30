@@ -35,6 +35,12 @@ class DetectionPipeline:
         self.min_depth_m = min_depth_m
         self.max_depth_m = max_depth_m
         self._imgsz = imgsz
+        
+        # --- Calibration state ---
+        self.is_calibrated = False
+        self.consecutive_frames = 0
+        self.REQUIRED_FRAMES = 30 # ~5 seconds at 6fps
+        self.CALIBRATION_LABELS = {"Red Cube", "Green Cube", "Blue Cube"}
 
     def run(
         self,
@@ -73,6 +79,17 @@ class DetectionPipeline:
                 bbox=bbox,
                 position_3d=position,
             ))
+
+        # --- Update Calibration Statemachine ---
+        if not self.is_calibrated:
+            current_labels = {d.label for d in results}
+            if self.CALIBRATION_LABELS.issubset(current_labels):
+                self.consecutive_frames += 1
+                if self.consecutive_frames >= self.REQUIRED_FRAMES:
+                    self.is_calibrated = True
+                    # Transition logic: Expand classes (handled by node)
+            else:
+                self.consecutive_frames = 0 # Reset on "spotty" detection
 
         return results
 

@@ -47,13 +47,15 @@ class CubeDetector:
         """
         YOLO = _get_yolo()
         self._model = YOLO(model_path)
-        if "world" in model_path.lower():
-            # For YOLO-World models, we must set the classes to trigger zero-shot mode
-            try:
-                self._model.set_classes(["red cube", "green cube", "blue cube", "cube", "box", "block"])
-            except Exception as e:
-                print(f"[WARN] Could not set_classes on {model_path}: {e}")
         self.confidence_threshold = confidence
+        self.set_classes(["red cube", "green cube", "blue cube"])
+
+    def set_classes(self, classes: List[str]):
+        """Update the zero-shot detection classes."""
+        try:
+            self._model.set_classes(classes)
+        except Exception as e:
+            print(f"[WARN] Could not set_classes: {e}")
 
     def detect(
         self,

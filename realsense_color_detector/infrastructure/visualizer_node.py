@@ -17,6 +17,7 @@ from builtin_interfaces.msg import Duration
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 
 from realsense_color_detector_msgs.msg import DetectedObjectArray
+from std_msgs.msg import String
 
 
 SENSOR_QOS = QoSProfile(
@@ -56,6 +57,7 @@ class VisualizerNode(Node):
         self._bridge = CvBridge()
         self._latest_detections: DetectedObjectArray = None
         self._latest_depth_msg: Image = None
+        self._calibration_status: str = "WAITING"
 
         # Subscribe to detections
         self._detections_sub = self.create_subscription(
@@ -65,6 +67,7 @@ class VisualizerNode(Node):
         # Async subscriptions instead of ApproximateTimeSynchronizer to prevent CPU starvation on LattePanda
         self._depth_sub = self.create_subscription(Image, '/camera/aligned_depth_to_color/image_raw', self._on_depth, SENSOR_QOS)
         self._color_sub = self.create_subscription(Image, '/camera/color/image_raw', self._on_color, SENSOR_QOS)
+        self._status_sub = self.create_subscription(String, '/calibration_status', self._on_status, 10)
 
         self._image_pub   = self.create_publisher(Image,       '/detection_image',   SENSOR_QOS)
         self._depth_pub   = self.create_publisher(Image,       '/detection_depth',   SENSOR_QOS)
@@ -79,6 +82,9 @@ class VisualizerNode(Node):
     def _on_depth(self, msg: Image):
         self._latest_depth_msg = msg
 
+    def _on_status(self, msg: String):
+        self._calibration_status = msg.data
+
     def _on_color(self, color_msg: Image):
         if self._latest_detections is None or self._latest_depth_msg is None:
             return
@@ -88,6 +94,7 @@ class VisualizerNode(Node):
 
         # --- Annotated colour image ---
         self._draw_detections(color_cv, self._latest_detections)
+        self._draw_status_overlay(color_cv)
         out_color = self._bridge.cv2_to_imgmsg(color_cv, encoding='bgr8')
         out_color.header = color_msg.header
         self._image_pub.publish(out_color)
@@ -136,6 +143,13 @@ class VisualizerNode(Node):
                         font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
             cv2.putText(img, label_line2, (x + 4, top_y + th1 + th2 + 10),
                         font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+
+    def _draw_status_overlay(self, img: np.ndarray):
+        """Draw calibration status in the corner."""
+        text = f"SYSTEM: {self._calibration_status}"
+        color = (0, 255, 0) if "READY" in self._calibration_status else (0, 165, 255) # Green vs Orange
+        cv2.putText(img, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 4, cv2.LINE_AA)
+        cv2.putText(img, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2, cv2.LINE_AA)
 
     def _draw_depth_overlays(self, depth_bgr: np.ndarray, detections: DetectedObjectArray):
         """Draw bounding boxes + distance text on the false-colour depth image."""
@@ -205,6 +219,26 @@ class VisualizerNode(Node):
             t.lifetime = Duration(sec=0, nanosec=500_000_000)
 
             marker_array.markers.append(t)
+
+        # --- System Status Marker (Fixed in space relative to camera) ---
+        s = Marker()
+        s.header.frame_id = "camera_color_optical_frame"
+        s.header.stamp    = self.get_clock().now().to_msg()
+        s.ns        = 'system_status'
+        s.id        = 999
+        s.type      = Marker.TEXT_VIEW_FACING
+        s.action    = Marker.ADD
+        s.pose.position.x = 0.0
+        s.pose.position.y = -0.3 # High above center
+        s.pose.position.z = 1.0  # 1m in front
+        s.scale.z = 0.08
+        s.color.r = 0.0 if "READY" in self._calibration_status else 1.0
+        s.color.g = 1.0
+        s.color.b = 0.0
+        s.color.a = 1.0
+        s.text    = f"STATUS: {self._calibration_status}"
+        s.lifetime = Duration(sec=0, nanosec=500_000_000)
+        marker_array.markers.append(s)
 
         self._markers_pub.publish(marker_array)
 
