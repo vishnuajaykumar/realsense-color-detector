@@ -48,7 +48,7 @@ class CubeDetector:
         YOLO = _get_yolo()
         self._model = YOLO(model_path)
         self.confidence_threshold = confidence
-        self.set_classes(["red cube", "green cube", "blue cube"])
+        self.set_classes(["red cube", "green cube", "blue cube", "red", "green", "blue", "red object", "green object", "blue object"])
 
     def set_classes(self, classes: List[str]):
         """Update the zero-shot detection classes."""
@@ -82,13 +82,18 @@ class CubeDetector:
             if r.boxes is None:
                 continue
             names = r.names
+            print(f"[DEBUG] Model names: {names}")
             for box in r.boxes:
                 raw_cls = int(box.cls.item())
                 cls_name = names[raw_cls].lower()
                 conf = float(box.conf.item())
                 
                 # Use the model's native name for the class
-                label = names.get(raw_cls, f"Class_{raw_cls}")
+                if isinstance(names, dict):
+                    label = names.get(raw_cls, f"Class_{raw_cls}")
+                else:
+                    label = names[raw_cls] if raw_cls < len(names) else f"Class_{raw_cls}"
+
                 label = label.title().replace("_", " ")
 
                 if conf >= self.confidence_threshold:

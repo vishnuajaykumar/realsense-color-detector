@@ -132,7 +132,7 @@ class DetectorNode(Node):
                 status_msg.data = "READY"
                 if not hasattr(self, '_was_calibrated'):
                     self.get_logger().info('*** CALIBRATION READY! Expanding detection classes. ***')
-                    self._pipeline._detector.set_classes(["red cube", "green cube", "blue cube", "cube", "box", "block"])
+                    self._pipeline._detector.set_classes(["red cube", "green cube", "blue cube", "cube", "box", "brown box", "shipping box", "cardboard box", "parcel", "package", "container", "block"])
                     self._was_calibrated = True # Only trigger once
             else:
                 status_msg.data = self._pipeline.get_calibration_status()

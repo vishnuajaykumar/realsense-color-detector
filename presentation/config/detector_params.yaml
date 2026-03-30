@@ -4,7 +4,7 @@ detector_node:
     imgsz: 320
 
     # Minimum detection confidence (0.0–1.0). Lower = more detections, more false positives.
-    confidence: 0.25
+    confidence: 0.03
 
     # Depth sensing parameters (Intel RealSense D435i)
     depth_scale: 0.001   # raw unit → metres (1 mm per unit, D435i default)

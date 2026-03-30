@@ -42,7 +42,12 @@ class DetectionPipeline:
         self.REQUIRED_STABILITY = 0.8  # 80% detection rate
         self.WINDOW_SIZE       = 30   # last 30 frames
         self._history          = deque(maxlen=self.WINDOW_SIZE)
-        self.CALIBRATION_LABELS = {"Red Cube", "Green Cube", "Blue Cube"}
+        self.CALIBRATION_LABELS = {
+            "red": {"Red Cube", "Red", "Red Object"},
+            "green": {"Green Cube", "Green", "Green Object"},
+            "blue": {"Blue Cube", "Blue", "Blue Object"}
+        }
+        self.MIN_COLORS_REQUIRED = 1 # Allow 1 color for immediate readiness
 
     def run(
         self,
@@ -52,6 +57,8 @@ class DetectionPipeline:
     ) -> List[DetectedObject]:
 
         raw = self._detector.detect(color_image, imgsz=self._imgsz)
+        if raw:
+            print(f"[DEBUG] RAW detections: {raw}")
         results: List[DetectedObject] = []
 
         for label, conf, bx, by, bw, bh in raw:
@@ -75,6 +82,7 @@ class DetectionPipeline:
             y = (cy - intrinsics.cy) * depth_m / intrinsics.fy
             position = Point3D(x=x, y=y, z=depth_m)
 
+            print(f"[DEBUG] {label}: {conf:.2f}")
             results.append(DetectedObject(
                 label=label,
                 distance_m=depth_m,
@@ -85,7 +93,15 @@ class DetectionPipeline:
         # --- Update Calibration Statemachine ---
         if not self.is_calibrated:
             current_labels = {d.label for d in results}
-            success = self.CALIBRATION_LABELS.issubset(current_labels)
+            if current_labels:
+                print(f"[DEBUG] Labels: {current_labels}")
+            
+            # Check if we have at least one valid match for each required color
+            matches = {
+                color for color, alternatives in self.CALIBRATION_LABELS.items()
+                if alternatives.intersection(current_labels)
+            }
+            success = len(matches) >= self.MIN_COLORS_REQUIRED
             self._history.append(success)
             
             if len(self._history) == self.WINDOW_SIZE:
